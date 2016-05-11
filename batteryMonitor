@@ -1,0 +1,84 @@
+/* 
+ * File:   Battery Monitor.c
+ * Author: Robby
+ *
+ * Created on May 1, 2016, 2:10 PM
+ */
+#include <p18lf2520.h>
+#include <xc.h>
+
+//======================================================================================
+// Configuration Bits
+#pragma    config WDT = OFF
+#pragma    config OSC = INTIO67
+//#pragma    config PWRT = ON	// blanked for PICKIT2 debug function
+#pragma    config LVP = OFF
+#pragma    config MCLRE = ON
+#pragma    config BOREN = ON
+//=======================================================================================
+//Prototypes
+void set_osc (void);
+void int_ports (void);
+void int_ADC (void);
+int readVoltage(int);
+float convertVoltage(int value);
+
+
+int ADCvalue; //ADC Value
+float Voltage;
+
+//=======================================================================================
+//------------------------Start of Main Program-----------------------------------------//
+void main (void)
+{
+	set_osc();
+	int_ports();
+	int_ADC();
+
+	while(1)
+	{
+     ADCvalue = readVoltage(0);   //Read Channel AN0
+     Voltage = convertVoltage(ADCvalue);
+     //Delay10TCYx(1000);
+	}
+}
+
+//===========================================================================================
+void set_osc (void)
+{   
+    OSCCON = 0b01100000;			// Set Oscillator to 4MHz
+    while (OSCCONbits.IOFS != 1);	// Wait for Oscillator to stabilize
+}
+//===========================================================================================
+void int_ports (void)
+{
+    TRISAbits.TRISA0 = 1;          		// Set AN0 as input for DC Voltage Value
+}
+
+//===========================================================================================
+void int_ADC ()
+{
+    ADCON1 = 0b00000000;
+	ADCON2 = 0b00001010;
+}
+
+//===========================================================================================
+//Function to Read given ADC channel (0-10) and covert that value to a voltage reading
+int readVoltage (int ch)
+{
+   if(ch>10) return 0;  //Invalid Channel
+   ADCON0 = 0x00;
+   ADCON0 = (ch<<2);   //Select ADC Channel
+   ADCON0bits.ADON = 1;  //switch on the adc module
+   ADCON0bits.GO = 1;//Start conversion
+   while(ADCON0bits.GO);//wait for the conversion to finish
+   ADCON0bits.ADON = 0;  //switch off 
+   ADRES = ADRES >> 6;
+   return ADRES;
+}
+//===========================================================================================
+float convertVoltage(int value)
+{
+    float voltage = value/(1023/15);
+    return voltage;
+}
